@@ -37,6 +37,7 @@ describe('Stream', function() {
     this.context = {
       project: {
         id: '3559',
+        name: 'Foo Project',
         slug: 'foo-project',
         firstEvent: true,
       },

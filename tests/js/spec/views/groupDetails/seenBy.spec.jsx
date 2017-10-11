@@ -20,7 +20,11 @@ describe('GroupSeenBy', function() {
       let wrapper = shallow(<GroupSeenBy />, {
         context: {
           group: {id: '1337'},
-          project: {id: '2448'},
+          project: {
+            id: '2448',
+            name: 'project name',
+            slug: 'project-name',
+          },
           team: {id: '3559'},
         },
       });
@@ -37,7 +41,11 @@ describe('GroupSeenBy', function() {
               {id: 2, email: 'john@example.com'},
             ],
           },
-          project: {id: '2448'},
+          project: {
+            id: '2448',
+            name: 'project name',
+            slug: 'project-name',
+          },
           team: {id: '3559'},
         },
       });
