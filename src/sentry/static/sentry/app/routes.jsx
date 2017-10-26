@@ -28,6 +28,7 @@ import GroupTagValues from './views/groupTagValues';
 import GroupTags from './views/groupTags';
 import GroupUserReports from './views/groupUserReports';
 import HookStore from './stores/hookStore';
+import InviteMember from './views/inviteMember/inviteMember';
 import MyIssuesAssignedToMe from './views/myIssues/assignedToMe';
 import MyIssuesBookmarked from './views/myIssues/bookmarked';
 import MyIssuesViewed from './views/myIssues/viewed';
@@ -44,6 +45,7 @@ import OrganizationDashboard from './views/organizationDashboard';
 import OrganizationDetails from './views/organizationDetails';
 import OrganizationHomeContainer from './components/organizations/homeContainer';
 import OrganizationIntegrations from './views/organizationIntegrations';
+import OrganizationMemberDetail from './views/settings/organization/members/organizationMemberDetail';
 import OrganizationMembersView from './views/settings/organization/members/organizationMembersView';
 import OrganizationPicker from './views/settings/components/organizationPicker';
 import OrganizationProjectsView from './views/settings/organization/projects/organizationProjectsView';
@@ -90,7 +92,6 @@ import SettingsIndex from './views/settings/settingsIndex';
 import SettingsWrapper from './views/settings/settingsWrapper';
 import SharedGroupDetails from './views/sharedGroupDetails';
 import Stream from './views/stream';
-import InviteMember from './views/inviteMember/inviteMember';
 import TeamCreate from './views/teamCreate';
 import TeamDetails from './views/teamDetails';
 import TeamMembers from './views/teamMembers';
@@ -173,7 +174,13 @@ const orgSettingsRoutes = [
     name="Repositories"
     component={errorHandler(OrganizationRepositories)}
   />,
-
+  <Route key="members/new/" path="members/new/" component={errorHandler(InviteMember)} />,
+  <Route
+    key="members-detail"
+    path="members/:memberId/"
+    component={errorHandler(OrganizationMemberDetail)}
+  />,
+  <Route key="repos" path="repos/" component={errorHandler(OrganizationRepositories)} />,
   <Route
     key="settings"
     path="settings/"
@@ -205,6 +212,8 @@ const orgSettingsRoutes = [
     allTeams
     component={errorHandler(OrganizationTeams)}
   />,
+
+  <Route key="org-stats" path="stats/" component={errorHandler(OrganizationStats)} />,
 ];
 
 const projectSettingsRoutes = [
@@ -419,10 +428,6 @@ function routes() {
         <Route
           path="/organizations/:orgId/projects/choose/"
           component={errorHandler(ProjectChooser)}
-        />
-        <Route
-          path="/organizations/:orgId/stats/"
-          component={errorHandler(OrganizationStats)}
         />
 
         <Route
