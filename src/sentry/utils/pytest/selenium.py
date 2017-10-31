@@ -44,18 +44,22 @@ class Browser(object):
         return '{}/{}'.format(self.live_server_url, path.lstrip('/').format(*args, **kwargs))
 
     def get(self, path, *args, **kwargs):
+        self._has_initialized_cookie_store = True
         self.driver.get(self.route(path), *args, **kwargs)
         return self
 
     def post(self, path, *args, **kwargs):
+        self._has_initialized_cookie_store = True
         self.driver.post(self.route(path), *args, **kwargs)
         return self
 
     def put(self, path, *args, **kwargs):
+        self._has_initialized_cookie_store = True
         self.driver.put(self.route(path), *args, **kwargs)
         return self
 
     def delete(self, path, *args, **kwargs):
+        self._has_initialized_cookie_store = True
         self.driver.delete(self.route(path), *args, **kwargs)
         return self
 
@@ -98,6 +102,19 @@ class Browser(object):
 
         return self
 
+    @property
+    def switch_to(self):
+        return self.driver.switch_to
+
+    def implicitly_wait(self, duration):
+        """
+        An implicit wait tells WebDriver to poll the DOM for a certain amount of
+        time when trying to find any element (or elements) not immediately
+        available. The default setting is 0. Once set, the implicit wait is set
+        for the life of the WebDriver object.
+        """
+        self.driver.implicitly_wait(duration)
+
     def snapshot(self, name):
         """
         Capture a screenshot of the current state of the page. Screenshots
@@ -110,38 +127,42 @@ class Browser(object):
         return self
 
     def save_cookie(self, name, value, path='/', expires='Tue, 20 Jun 2025 19:07:44 GMT'):
-        # XXX(dcramer): "hit a url before trying to set cookies"
+        cookie = {
+            'name': name,
+            'value': value,
+            'expires': expires,
+            'path': path,
+            'domain': self.domain,
+        }
+
+        # XXX(dcramer): the cookie store must be initialized via a URL
         if not self._has_initialized_cookie_store:
             logger.info('selenium.initialize-cookies')
             self.get('/')
-            self._has_initialized_cookie_store = True
 
         # XXX(dcramer): PhantomJS does not let us add cookies with the native
         # selenium API because....
         # http://stackoverflow.com/questions/37103621/adding-cookies-working-with-firefox-webdriver-but-not-in-phantomjs
-        # TODO(dcramer): this should be escaped, but idgaf
-        logger.info('selenium.set-cookies.{}'.format(name), extra={
-            'value': value,
-        })
+        if isinstance(self.driver, webdriver.PhantomJS):
+            # TODO(dcramer): this should be escaped, but idgaf
+            logger.info('selenium.set-cookies.{}'.format(name), extra={
+                'value': value,
+            })
 
-        self.driver.execute_script(
-            "document.cookie = '{name}={value}; path={path}; domain={domain}; expires={expires}';\n".
-            format(
-                name=name,
-                value=value,
-                expires=expires,
-                path=path,
-                domain=self.domain,
+            self.driver.execute_script(
+                "document.cookie = '{name}={value}; path={path}; domain={domain}; expires={expires}';\n".format(
+                    cookie)
             )
-        )
+        else:
+            self.driver.add_cookie(cookie)
 
 
 def pytest_addoption(parser):
-    parser.addini('selenium_driver', help='selenium driver (phantomjs or firefox)')
+    parser.addini('selenium_driver', help='selenium driver (chrome, phantomjs, or firefox)')
 
     group = parser.getgroup('selenium', 'selenium')
     group._addoption(
-        '--selenium-driver', dest='selenium_driver', help='selenium driver (phantomjs or firefox)'
+        '--selenium-driver', dest='selenium_driver', help='selenium driver (chrome, phantomjs, or firefox)'
     )
     group._addoption('--phantomjs-path', dest='phantomjs_path', help='path to phantomjs driver')
 
@@ -175,7 +196,13 @@ def percy(request):
 @pytest.fixture(scope='function')
 def browser(request, percy, live_server):
     driver_type = request.config.getoption('selenium_driver')
-    if driver_type == 'firefox':
+    if driver_type == 'chrome':
+        options = webdriver.ChromeOptions()
+        options.add_argument('headless')
+        options.add_argument('disable-gpu')
+        options.add_argument('window-size=1280x800')
+        driver = webdriver.Chrome(chrome_options=options)
+    elif driver_type == 'firefox':
         driver = webdriver.Firefox()
     elif driver_type == 'phantomjs':
         phantomjs_path = request.config.getoption('phantomjs_path')
