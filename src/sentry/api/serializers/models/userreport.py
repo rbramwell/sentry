@@ -15,7 +15,10 @@ class UserReportSerializer(Serializer):
 
         event_users = {e.id: d for e, d in zip(queryset, serialize(queryset, user))}
 
+        project_id = item_list[0].project_id
+
         events_list = Event.objects.filter(
+            project_id=project_id,
             event_id__in=[i.event_id for i in item_list]
         ).values('id', 'event_id')
 
@@ -44,7 +47,10 @@ class UserReportSerializer(Serializer):
             'comments': obj.comments,
             'dateCreated': obj.date_added,
             'user': attrs['event_user'],
-            'event_id': six.text_type(attrs['event_id'])
+            'event': {
+                'id': six.text_type(attrs['event_id']) if attrs['event_id'] else None
+            }
+
         }
 
 
