@@ -15,10 +15,10 @@ class UserReportSerializer(Serializer):
 
         event_users = {e.id: d for e, d in zip(queryset, serialize(queryset, user))}
 
-        project_id = item_list[0].project_id
-
+        # If a event list with multiple project IDs is passed to this and event IDs are not unique
+        # this could return the wrong eventIDs
         events_list = Event.objects.filter(
-            project_id=project_id,
+            project_id__in={i.project_id for i in item_list},
             event_id__in=[i.event_id for i in item_list]
         ).values('id', 'event_id')
 
