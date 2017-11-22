@@ -220,10 +220,11 @@ const projectSettingsRoutes = [
     key="install/"
     path="install/"
     name="Basic Configuration"
-    component={errorHandler(ProjectDocsContext)}>
+    component={errorHandler(ProjectDocsContext)}
+  >
     <IndexRoute component={errorHandler(ProjectInstallOverview)} />
     <Route path=":platform/" component={errorHandler(ProjectInstallPlatform)} />
-  </Route>
+  </Route>,
 ];
 
 function routes() {
