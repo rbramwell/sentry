@@ -179,6 +179,14 @@ class GroupDetailsEndpoint(GroupEndpoint, EnvironmentMixin):
         activity = self._get_activity(request, group, num=100)
         seen_by = self._get_seen_by(request, group)
 
+        __missing__ = object()
+
+        try:
+            environment_id = self._get_environment_id_from_request(
+                request, group.project.organization_id)
+        except Environment.DoesNotExist:
+            environment_id = __missing__
+
         first_release = group.get_first_release()
 
         if first_release is not None:
@@ -189,20 +197,31 @@ class GroupDetailsEndpoint(GroupEndpoint, EnvironmentMixin):
         action_list = self._get_actions(request, group)
 
         now = timezone.now()
+        if environment_id is not __missing__:
+            get_range = tsdb.get_range
+        else:
+            # TODO(tkaemming): Find a less insane way to do this
+            # TODO(tkaemming): This method isn't actually exposed on the backend, lol
+            get_range = lambda model, keys, start, end, **kwargs: \
+                {k: [(t, 0) for t in tsdb.backend.get_optimal_rollup_series(start, end)[1]]
+                 for k in keys}
+
         hourly_stats = tsdb.rollup(
-            tsdb.get_range(
+            get_range(
                 model=tsdb.models.group,
                 keys=[group.id],
                 end=now,
                 start=now - timedelta(days=1),
+                environment_id=environment_id,
             ), 3600
         )[group.id]
         daily_stats = tsdb.rollup(
-            tsdb.get_range(
+            get_range(
                 model=tsdb.models.group,
                 keys=[group.id],
                 end=now,
                 start=now - timedelta(days=30),
+                environment_id=environment_id,
             ), 3600 * 24
         )[group.id]
 
@@ -211,13 +230,10 @@ class GroupDetailsEndpoint(GroupEndpoint, EnvironmentMixin):
         if last_release:
             last_release = self._get_release_info(request, group, last_release)
 
-        try:
-            environment_id = self._get_environment_id_from_request(
-                request, group.project.organization_id)
-        except Environment.DoesNotExist:
-            tags = []
-        else:
+        if environment_id is not __missing__:
             tags = tagstore.get_group_tag_keys(group.id, environment_id, limit=100)
+        else:
+            tags = []
 
         participants = list(
             User.objects.filter(
