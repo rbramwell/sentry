@@ -344,6 +344,7 @@ class StreamGroupSerializer(GroupSerializer):
 
             segments, interval = self.STATS_PERIOD_CHOICES[self.stats_period]
             now = timezone.now()
+            raise NotImplementedError  # TODO(tkaemming)
             stats = tsdb.get_range(
                 model=tsdb.models.group,
                 keys=group_ids,
