@@ -490,6 +490,20 @@ def disconnect_identity(request, identity_id):
 @csrf_protect
 @never_cache
 @login_required
+def associate_identity(request, organization, identity_key):
+    if request.method != 'POST':
+        raise NotImplementedError
+
+    return HttpResponse(
+        'Doing the things',
+        content_type='text/plain',
+        status=429,
+    )
+
+
+@csrf_protect
+@never_cache
+@login_required
 def show_emails(request):
     user = request.user
     emails = user.emails.all()
