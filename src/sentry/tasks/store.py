@@ -19,6 +19,7 @@ from sentry.cache import default_cache
 from sentry.tasks.base import instrumented_task
 from sentry.utils import metrics
 from sentry.utils.safe import safe_execute
+from sentry.signals import event_saved
 from sentry.stacktraces import process_stacktraces, \
     should_process_for_stacktraces
 from sentry.utils.dates import to_datetime
@@ -315,6 +316,16 @@ def save_event(cache_key=None, data=None, start_time=None, event_id=None, **kwar
                 project,
                 key=project_key,
                 timestamp=start_time,
+            )
+    else:
+        try:
+            project = Project.objects.get_from_cache(id=project_id)
+        except Project.DoesNotExist:
+            pass
+        else:
+            event_saved.send_robust(
+                project=project,
+                sender=EventManager
             )
 
     finally:

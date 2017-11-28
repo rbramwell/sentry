@@ -7,8 +7,10 @@ from time import time
 from sentry import quotas, tsdb
 from sentry.event_manager import EventManager, HashDiscarded
 from sentry.plugins import Plugin2
+from sentry.signals import event_saved
 from sentry.tasks.store import preprocess_event, process_event, save_event
 from sentry.testutils import PluginTestCase
+from sentry.testutils.asserts import assert_mock_called_once_with_partial
 from sentry.utils.dates import to_datetime
 
 
@@ -170,6 +172,34 @@ class StoreTasksTest(PluginTestCase):
             cache_key='e:1', data=None, start_time=1, event_id=None,
         )
 
+    def test_event_saved_signal(self):
+        project = self.create_project()
+
+        mock_event_saved = mock.Mock()
+
+        event_saved.connect(mock_event_saved)
+
+        data = {
+            'project': project.id,
+            'platform': 'NOTMATTLANG',
+            'message': 'test',
+            'event_id': uuid.uuid4().hex,
+            'extra': {
+                'foo': 'bar'
+            },
+        }
+
+        now = time()
+        mock_save = mock.Mock()
+        with mock.patch.object(EventManager, 'save', mock_save):
+            save_event(data=data, start_time=now)
+            assert_mock_called_once_with_partial(
+                mock_event_saved,
+                project=project,
+                sender=EventManager,
+                signal=event_saved,
+            )
+
     @mock.patch.object(tsdb, 'incr')
     @mock.patch.object(quotas, 'refund')
     def test_hash_discarded_raised(self, mock_refund, mock_incr):
@@ -188,6 +218,9 @@ class StoreTasksTest(PluginTestCase):
         now = time()
         mock_save = mock.Mock()
         mock_save.side_effect = HashDiscarded
+        mock_event_saved = mock.Mock()
+        event_saved.connect(mock_event_saved)
+
         with mock.patch.object(EventManager, 'save', mock_save):
             save_event(data=data, start_time=now)
             mock_incr.assert_called_with(
@@ -195,3 +228,4 @@ class StoreTasksTest(PluginTestCase):
                 project.id,
                 timestamp=to_datetime(now),
             )
+            assert not mock_event_saved.called
