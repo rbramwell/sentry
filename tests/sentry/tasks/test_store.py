@@ -7,7 +7,7 @@ from time import time
 from sentry import quotas, tsdb
 from sentry.event_manager import EventManager, HashDiscarded
 from sentry.plugins import Plugin2
-from sentry.signals import event_saved
+from sentry.signals import event_discarded, event_saved
 from sentry.tasks.store import preprocess_event, process_event, save_event
 from sentry.testutils import PluginTestCase
 from sentry.testutils.asserts import assert_mock_called_once_with_partial
@@ -218,8 +218,12 @@ class StoreTasksTest(PluginTestCase):
         now = time()
         mock_save = mock.Mock()
         mock_save.side_effect = HashDiscarded
+
+        # make sure signals are properly triggered
         mock_event_saved = mock.Mock()
         event_saved.connect(mock_event_saved)
+        mock_event_discarded = mock.Mock()
+        event_discarded.connect(mock_event_discarded)
 
         with mock.patch.object(EventManager, 'save', mock_save):
             save_event(data=data, start_time=now)
@@ -229,3 +233,10 @@ class StoreTasksTest(PluginTestCase):
                 timestamp=to_datetime(now),
             )
             assert not mock_event_saved.called
+
+            assert_mock_called_once_with_partial(
+                mock_event_discarded,
+                project=project,
+                sender=EventManager,
+                signal=event_discarded,
+            )
