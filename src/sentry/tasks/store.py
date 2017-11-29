@@ -318,17 +318,21 @@ def save_event(cache_key=None, data=None, start_time=None, event_id=None, **kwar
                 timestamp=start_time,
             )
             event_discarded.send_robust(
-                project=project,
+                project_id=project.id,
+                organization_id=project.organization_id,
                 sender=EventManager,
             )
     else:
         try:
-            project = Project.objects.get_from_cache(id=project_id)
-        except Project.DoesNotExist:
+            organization_id = Project.objects.filter(
+                id=project_id,
+            ).values_list('organization_id', flat=True)[0]
+        except IndexError:
             pass
         else:
             event_saved.send_robust(
-                project=project,
+                project_id=project_id,
+                organization_id=organization_id,
                 sender=EventManager,
             )
 

@@ -195,7 +195,8 @@ class StoreTasksTest(PluginTestCase):
             save_event(data=data, start_time=now)
             assert_mock_called_once_with_partial(
                 mock_event_saved,
-                project=project,
+                project_id=project.id,
+                organization_id=project.organization_id,
                 sender=EventManager,
                 signal=event_saved,
             )
@@ -236,7 +237,8 @@ class StoreTasksTest(PluginTestCase):
 
             assert_mock_called_once_with_partial(
                 mock_event_discarded,
-                project=project,
+                project_id=project.id,
+                organization_id=project.organization_id,
                 sender=EventManager,
                 signal=event_discarded,
             )
