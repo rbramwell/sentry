@@ -29,11 +29,6 @@ from sentry.tagstore.base import INTERNAL_TAG_KEYS
 def iverror(message="Invalid data"):
     raise InterfaceValidationError(message)
 
-
-def apierror(message="Invalid data"):
-    from sentry.coreapi import APIForbidden
-    raise APIForbidden(message)
-
 PAIRS = {
     'type': 'array',
     'items': {
@@ -121,24 +116,9 @@ FRAME_INTERFACE_SCHEMA = {
             ]
         },
     },
-    'anyOf': [
-        # TODO abs_path vs. filename validation depends on whether this is a raw frame or not.
-        {'required': ['abs_path']},
-        {'required': ['filename']},
-        {
-            # can only accept function on its own if it's not None or '?'
-            'required': ['function'],
-            'properties': {
-                'function': {
-                    'type': 'string',  # TODO probably shouldn't allow empty string either
-                    'not': {'pattern': '^\?$'},
-                },
-            },
-        },
-        {'required': ['module']},
-        {'required': ['package']},
-    ],
-    'additionalProperties': True,
+    # `additionalProperties: {'not': {}}` forces additional properties to
+    # individually fail with errors that identify the key, so they can be deleted.
+    'additionalProperties': {'not': {}},
 }
 
 STACKTRACE_INTERFACE_SCHEMA = {
@@ -159,7 +139,9 @@ STACKTRACE_INTERFACE_SCHEMA = {
         'registers': {'type': 'object'},
     },
     'required': ['frames'],
-    'additionalProperties': False,
+    # `additionalProperties: {'not': {}}` forces additional properties to
+    # individually fail with errors that identify the key, so they can be deleted.
+    'additionalProperties': {'not': {}},
 }
 
 EXCEPTION_INTERFACE_SCHEMA = {
@@ -201,6 +183,26 @@ EXCEPTION_INTERFACE_SCHEMA = {
     # TODO should be false but allowing extra garbage for now
     # for compatibility
     'additionalProperties': True,
+}
+
+DEVICE_INTERFACE_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'name': {
+            'type': 'string',
+            'minLength': 1,
+        },
+        'version': {
+            'type': 'string',
+            'minLength': 1,
+        },
+        'build': {},
+        'data': {
+            'type': 'object',
+            'default': {},
+        },
+    },
+    'required': ['name', 'version'],
 }
 
 TEMPLATE_INTERFACE_SCHEMA = {'type': 'object'}  # TODO fill this out
@@ -267,6 +269,9 @@ TAGS_SCHEMA = {
 EVENT_SCHEMA = {
     'type': 'object',
     'properties': {
+        'type': {
+            'type': 'string',
+        },
         'event_id': {
             'type': 'string',
             'pattern': '^[a-fA-F0-9]+$',
@@ -316,7 +321,6 @@ EVENT_SCHEMA = {
             'type': 'string',
             # 'minLength': 1,
             # 'maxLength': MAX_CULPRIT_LENGTH,
-            'default': lambda: apierror('Invalid value for culprit'),
         },
         'server_name': {'type': 'string'},
         'release': {
@@ -410,6 +414,7 @@ INTERFACE_SCHEMAS = {
     'sentry.interfaces.Message': MESSAGE_INTERFACE_SCHEMA,
     'template': TEMPLATE_INTERFACE_SCHEMA,
     'sentry.interfaces.Template': TEMPLATE_INTERFACE_SCHEMA,
+    'device': DEVICE_INTERFACE_SCHEMA,
 }
 
 
@@ -476,8 +481,8 @@ def validate_and_default_from_schema(
     # Values that need to be defaulted or deleted because they are not valid.
     for key, group in groupby(keyed_errors, lambda e: e.path[0]):
         ve = six.next(group)
-        error_type = EventError.VALUE_TOO_LONG if ve.validator.startswith(
-            'max') else EventError.INVALID_DATA
+        is_max = ve.validator.startswith('max')
+        error_type = EventError.VALUE_TOO_LONG if is_max else EventError.INVALID_DATA
         errors.append({'type': error_type, 'name': name or key, 'value': data[key]})
 
         if 'default' in ve.schema:
